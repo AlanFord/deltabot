@@ -3,17 +3,31 @@
     -->>>   how does the bot configure the servos??
 */
 
+/*
+ * see https://www.robotshop.com/en/arduino-sensor-shield-shd012.html?gclid=Cj0KCQjwtOLVBRCZARIsADPLtJ08Ib3VOUE-uZ5oDILBzgPGTzQgLwduga0wNy5vcjuYhYkuAUX8p0AaAsy4EALw_wcB
+ * also http://yourduino.com/sunshop//index.php?l=product_detail&p=195
+ * for more info on the servo shield
+ */
+
 #include <Servo.h>
 
 // delta arm dimensions and leg locations (in degrees)
-double thighLength = 25;    // length of the thigh segment in cm
-double shinLength = 25;     // length of the shin segment in cm
-double effectorLength = 2;  // distance from center of effector to pivot point of shin attachment, in cm
-double baseLength = 5;      // distnace from center of base to pivot point of thigh attachment, in cm
-double phi[] = {0, 120, 240}; // rotational location of each leg, in degrees.
+double thighLength = 24;    // length of the thigh segment in cm
+double shinLength = 51.1;     // length of the shin segment in cm
+double effectorLength = 7.5;  // distance from center of effector to pivot point of shin attachment, in cm
+double baseLength = 9;      // distnace from center of base to pivot point of thigh attachment, in cm
+double gripperLength = 17;   // distance from center of effector to the "gripping point"
+// angles for servos 1, 2, and 3, respectively
+double phi[] = {270, 150, 30}; // rotational location of each leg, in degrees.
 
+// servo pins on arduino
 Servo myServos[3];
-int servoPins[] = {8, 9, 10};
+// arduino mega digital pins for servos 1, 2, and 3, respectively
+//int servoPins[] = {14, 18, 3};
+int servoPins[] = {38, 42, 34};
+
+// this array will hold the required angles for the three servos that control the arm
+int servoAngle[] = {0, 0, 0};
 
 
 
@@ -21,7 +35,7 @@ int servoPins[] = {8, 9, 10};
 void setup() {
   // convert phi to radians, simplifying the math later on
   for (int i = 0; i < 3; i++) {
-    phi[i] = phi[i] / 180. * PI;
+    phi[i] = convertToRadians(phi[i]);
   }
   // set up the servo motors
   for (int i = 0; i < 3; i++) {
@@ -30,47 +44,76 @@ void setup() {
 }
 
 void loop() {
+  bool bogus = false;  // is the target location bogus?
+
+  // locations to move the arm to, one after another
   // these will hold arrays of desired locations of the effector/gripper/hand;
   // note that "xPrime" is the distance to the right
   //           "zPrime" is the distance to the front
   //           "yPrime" is the distance down below the base (should be negative, but it doesn't really matter)
-  double xPrime[] = {0, 0, 0, 0};
-  double yPrime[] = {0, 0, 0, 0};
-  double zPrime[] = {0, 0, 0, 0};
-
-
-  int servoAngle[] = {0, 0, 0};
+  double xPrime[] = {0, 5, 0, 5};
+  double yPrime[] = { -10, -15, -20, -25};
+  double zPrime[] = {5, 0, 5, 0};
 
   // loop through all of the required gripper positions, pausing between
   for (int j = 0; j < 4; j++) {
-    // calculate angle of each of three servos for the current gripper position
-    for (int i = 0; i < 3; i++) {
-      double x = xPrime[j] * cos(phi[i]) - zPrime[j] * sin(phi[i]);
-      double y = yPrime[j];
-      double z = xPrime[j] * sin(phi[i]) + zPrime[j] * cos(phi[i]);
-      double c = sqrt(pow(x + effectorLength - baseLength, 2) + y * y);
-      double a = sqrt(shinLength * shinLength - z * z);
-      double alpha = acos( (-(a * a) + thighLength * thighLength + c * c) / (2 * thighLength * c) );
-      double beta = atan2(y, x + effectorLength - baseLength);
-      servoAngle[i] = round((alpha - abs(beta)) / PI * 180); // servo angles are in degrees, and are integers
-    }
-    // sanity check of the servo angles
-    bool bogus = false;
-    for (int i = 0; i < 3; i++) {
-      if (servoAngle[i]<0 or servoAngle[i]>180) {
-        bogus = true;
-      }
-    }
+    bogus = calculateServoAngles(xPrime[j], yPrime[j], zPrime[j]);
     // set the servos to the appropriate angles
     // keep this loop separate from the others to ensure all servos are set is rapid order
     // (keep the legs from going whacko!)
-    if (bogus == false) {
+    if (not bogus) {
       for (int i = 0; i < 3; i++) {
         myServos[i].write(servoAngle[i]);
       }
+      delay(2000);  // wait 2 seconds before moving to another position
     }
-    delay(2000);
   }
 }
 
+double convertToRadians(double angle) {
+  return angle / 180.*PI;
+}
+
+double convertToDegrees(double angle) {
+  return angle / PI * 180. ;
+}
+
+/*
+  Function calculateServoAngles
+  Purpose: calculate required angles for 3 servos to position the gripper at the specified location (xPrime,yPrime,ZPrime)
+  Arguments:
+	double xPrime - gripper location to the right of the arm centerline
+	double yPrime - gripper location down below the base (should be negative, but it doesn't really matter)
+	double zPrime - gripper location to the front of the arm centerline
+  Returns:
+	boolean - True if all servo angles are valid, False otherwise
+*/
+double x, y, z, c, tempData, a, alpha, beta;
+bool calculateServoAngles(double xPrime, double yPrime, double zPrime) {
+  // calculate angle of each of three servos for the current gripper position
+  for (int i = 0; i < 3; i++) {
+    x = xPrime * cos(phi[i]) - zPrime * sin(phi[i]);
+    // deal with possible sign confusion with yPrime and adjust for gripper length
+    y = -abs(yPrime) + gripperLength;
+    z = xPrime * sin(phi[i]) + zPrime * cos(phi[i]);
+    tempData = x + effectorLength - baseLength;
+    c = sqrt(tempData * tempData + y * y);
+    // check for valid position data (no square roots of negative numbers)
+    tempData = shinLength * shinLength - z * z;
+    if (tempData < 0.0)
+      return false;
+    a = sqrt(tempData);
+    // check for valid calculation of the angle "alpha" 
+    tempData = (-(a * a) + thighLength * thighLength + c * c) / (2 * thighLength * c);
+    if (abs(tempData) > 1.0)
+      return false;
+    alpha = acos( tempData );
+    beta = atan2(y, x + effectorLength - baseLength);
+
+    servoAngle[i] = round(convertToDegrees(alpha - abs(beta))); // servo angles are in degrees, and are integers
+    if (servoAngle[i]<0 or servoAngle[i]>180)
+      return false;
+  }
+  return true;
+}
 
