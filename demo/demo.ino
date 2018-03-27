@@ -4,12 +4,16 @@
 */
 
 /*
- * see https://www.robotshop.com/en/arduino-sensor-shield-shd012.html?gclid=Cj0KCQjwtOLVBRCZARIsADPLtJ08Ib3VOUE-uZ5oDILBzgPGTzQgLwduga0wNy5vcjuYhYkuAUX8p0AaAsy4EALw_wcB
- * also http://yourduino.com/sunshop//index.php?l=product_detail&p=195
- * for more info on the servo shield
- */
+   see https://www.robotshop.com/en/arduino-sensor-shield-shd012.html?gclid=Cj0KCQjwtOLVBRCZARIsADPLtJ08Ib3VOUE-uZ5oDILBzgPGTzQgLwduga0wNy5vcjuYhYkuAUX8p0AaAsy4EALw_wcB
+   also http://yourduino.com/sunshop//index.php?l=product_detail&p=195
+   for more info on the servo shield
+*/
 
 #include <Servo.h>
+
+#define DEBUG
+
+#include "DebugUtils.h"
 
 // delta arm dimensions and leg locations (in degrees)
 double thighLength = 24;    // length of the thigh segment in cm
@@ -23,11 +27,11 @@ double phi[] = {270, 150, 30}; // rotational location of each leg, in degrees.
 // servo pins on arduino
 Servo myServos[3];
 // arduino mega digital pins for servos 1, 2, and 3, respectively
-//int servoPins[] = {14, 18, 3};
 int servoPins[] = {38, 42, 34};
 
 // this array will hold the required angles for the three servos that control the arm
 int servoAngle[] = {0, 0, 0};
+int servoBias[] = {0, 0, 0};
 
 
 
@@ -51,9 +55,9 @@ void loop() {
   // note that "xPrime" is the distance to the right
   //           "zPrime" is the distance to the front
   //           "yPrime" is the distance down below the base (should be negative, but it doesn't really matter)
-  double xPrime[] = {0, 5, 0, 5};
-  double yPrime[] = { -10, -15, -20, -25};
-  double zPrime[] = {5, 0, 5, 0};
+  double xPrime[] = {0, 0, 0, 0};
+  double yPrime[] = { -61.285, -61.285, -61.285, -61.285};
+  double zPrime[] = {0, 0, 0, 0};
 
   // loop through all of the required gripper positions, pausing between
   for (int j = 0; j < 4; j++) {
@@ -103,14 +107,15 @@ bool calculateServoAngles(double xPrime, double yPrime, double zPrime) {
     if (tempData < 0.0)
       return false;
     a = sqrt(tempData);
-    // check for valid calculation of the angle "alpha" 
+    // check for valid calculation of the angle "alpha"
     tempData = (-(a * a) + thighLength * thighLength + c * c) / (2 * thighLength * c);
     if (abs(tempData) > 1.0)
       return false;
     alpha = acos( tempData );
     beta = atan2(y, x + effectorLength - baseLength);
 
-    servoAngle[i] = round(convertToDegrees(alpha - abs(beta))); // servo angles are in degrees, and are integers
+    servoAngle[i] = 90 + servoBias[i] + round(convertToDegrees(alpha - abs(beta))); // servo angles are in degrees, and are integers
+    DEBUG_PRINT(servoAngle[i]);
     if (servoAngle[i]<0 or servoAngle[i]>180)
       return false;
   }
