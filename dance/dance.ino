@@ -37,6 +37,13 @@ int servoBias[] = {0, 0, 0};
 
 
 void setup() {
+#ifdef DEBUG
+  // start serial port at 9600 bps:
+  Serial.begin(9600);
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for native USB port only
+  }
+#endif
   // convert phi to radians, simplifying the math later on
   for (int i = 0; i < 3; i++) {
     phi[i] = convertToRadians(phi[i]);
@@ -48,26 +55,29 @@ void setup() {
 }
 
 void loop() {
-  bool bogus = false;  // is the target location bogus?
+  bool valid = true;  // is the target location bogus?
 
   // locations to move the arm to, one after another
   // these will hold arrays of desired locations of the effector/gripper/hand;
   // note that "xPrime" is the distance to the right
   //           "zPrime" is the distance to the front
   //           "yPrime" is the distance down below the base (should be negative, but it doesn't really matter)
-  double xPrime[] = {0, 0, 0, 0};
+  double xPrime[] = {0, 0, 0, 10};
   double yPrime[] = { -61.285, -61.285, -61.285, -61.285};
   double zPrime[] = {0, 0, 0, 0};
 
   // loop through all of the required gripper positions, pausing between
   for (int j = 0; j < 4; j++) {
-    bogus = calculateServoAngles(xPrime[j], yPrime[j], zPrime[j]);
+    valid = calculateServoAngles(xPrime[j], yPrime[j], zPrime[j]);
+
+
     // set the servos to the appropriate angles
     // keep this loop separate from the others to ensure all servos are set is rapid order
     // (keep the legs from going whacko!)
-    if (not bogus) {
+    if (valid) {
       for (int i = 0; i < 3; i++) {
         myServos[i].write(servoAngle[i]);
+        DEBUG_PRINT(String(servoAngle[0]) + " " + String(servoAngle[1]) + " " + String(servoAngle[2]));
       }
       delay(2000);  // wait 2 seconds before moving to another position
     }
@@ -115,7 +125,6 @@ bool calculateServoAngles(double xPrime, double yPrime, double zPrime) {
     beta = atan2(y, x + effectorLength - baseLength);
 
     servoAngle[i] = 90 + servoBias[i] + round(convertToDegrees(alpha - abs(beta))); // servo angles are in degrees, and are integers
-    DEBUG_PRINT(servoAngle[i]);
     if (servoAngle[i]<0 or servoAngle[i]>180)
       return false;
   }
