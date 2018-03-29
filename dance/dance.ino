@@ -27,11 +27,11 @@ double phi[] = {270, 150, 30}; // rotational location of each leg, in degrees.
 // servo pins on arduino
 Servo myServos[3];
 // arduino mega digital pins for servos 1, 2, and 3, respectively
-int servoPins[] = {38, 42, 34};
+int servoPins[] = {38, 30, 34};
 
 // this array will hold the required angles for the three servos that control the arm
 int servoAngle[] = {0, 0, 0};
-int servoBias[] = {0, 0, 0};
+int servoBias[] = {-15, -12, -20};
 
 
 
