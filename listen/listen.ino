@@ -1,17 +1,18 @@
-/*
-   Caution: the code calculates servo angles, likely from -90 to +90, where 0 is at the horizontal.
-    -->>>   how does the bot configure the servos??
-*/
 
 /*
-   see https://www.robotshop.com/en/arduino-sensor-shield-shd012.html?gclid=Cj0KCQjwtOLVBRCZARIsADPLtJ08Ib3VOUE-uZ5oDILBzgPGTzQgLwduga0wNy5vcjuYhYkuAUX8p0AaAsy4EALw_wcB
-   also http://yourduino.com/sunshop//index.php?l=product_detail&p=195
-   for more info on the servo shield
+ * listen.ino
+ * 
+ * Direct the delta-arm to move to coordinates specified over a serial connection from the Arduino Serial Monitor.
+ * 
+ * see https://www.robotshop.com/en/arduino-sensor-shield-shd012.html?gclid=Cj0KCQjwtOLVBRCZARIsADPLtJ08Ib3VOUE-uZ5oDILBzgPGTzQgLwduga0wNy5vcjuYhYkuAUX8p0AaAsy4EALw_wcB
+ * also http://yourduino.com/sunshop//index.php?l=product_detail&p=195
+ * for more info on the servo shield
 */
 
 #include <Servo.h>
 
-#define DEBUG
+// uncomment the following line to enable debug print statements
+// #define DEBUG
 
 #include "DebugUtils.h"
 
